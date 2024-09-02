@@ -1,4 +1,0 @@
-kalman_localization_node:
-  ros__parameters:
-    map_topic: "/pcl_pose"
-    odom_topic: "/odometry/navsat"
