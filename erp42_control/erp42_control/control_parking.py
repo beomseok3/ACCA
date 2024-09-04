@@ -3,10 +3,11 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from erp42_msgs.msg import ControlMessage
-from geometry_msgs.msg import PoseArray
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseArray,PoseStamped
+from nav_msgs.msg import Odometry, Path
 from visualization_msgs.msg import Marker, MarkerArray
 from tf_transformations import *
+from std_msgs.msg import Header
 
 # db
 import sys
@@ -64,7 +65,7 @@ class CONTROL_PARKING(Node):
         self.state = PARKING_STATE.SEARCH
         self.goal = 0
         self.target_idx = 0
-
+        self.stop_start_time = 0
         # State and localization
         self.local = State(0, 0, 0)
         self.sub_localization = self.create_subscription(
@@ -77,11 +78,12 @@ class CONTROL_PARKING(Node):
         )
         self.low_y_cone_marker_timer = self.create_timer(1, self.marker_timer)
 
+        self.pub_path = self.create_publisher(Path,"path",qos_profile=10)
         # stanley
         self.st = Stanley()
 
         # search_path_initialize
-        self.search_path_db = DB("search_path.db")
+        self.search_path_db = DB("search_path_school.db")
         rows = self.search_path_db.read_db_n("data", "value_x", "value_y", "yaw")
         self.search_path = rows
         print("\nSEARCH_path_db_is_loaded")
@@ -113,16 +115,15 @@ class CONTROL_PARKING(Node):
         )
         self.reverse_path = False
         # detection
-        self.enough_low_y = 2.0
         self.low_y_cone = []
         self.standard_point = POSE(
-            self.search_path[0][0], self.search_path[0][1], self.search_path[0][2]
+            self.search_path[44][0], self.search_path[44][1], self.search_path[44][2]
         )  # kcity : 137 , school : 44
         # define_detection_area
-        self.min_x = self.standard_point.x
+        self.min_x = self.standard_point.x - 1.0
         self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y - 1.5
-        self.max_y = self.standard_point.y
+        self.min_y = self.standard_point.y - 2.0
+        self.max_y = self.standard_point.y + 2.0
 
         self.marker_id = 0
         self.i = 0
@@ -164,8 +165,30 @@ class CONTROL_PARKING(Node):
                 marker.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
 
                 marker_array.markers.append(marker)
-
             self.pub_low_y_cone_marker.publish(marker_array)
+
+        path = Path()
+        path.header = Header()
+        path.header.stamp = self.get_clock().now().to_msg()
+        path.header.frame_id = "map"
+        for x, y, yaw in zip(self.path_cx,self.path_cy,self.path_cyaw):
+                pose = PoseStamped()
+                pose.header.stamp = self.get_clock().now().to_msg()
+                pose.header.frame_id = "map"
+                pose.pose.position.x = x
+                pose.pose.position.y = y
+                pose.pose.position.z = 0.0
+                quaternion = quaternion_from_euler(0, 0, yaw)
+                pose.pose.orientation.x = quaternion[0]
+                pose.pose.orientation.y = quaternion[1]
+                pose.pose.orientation.z = quaternion[2]
+                pose.pose.orientation.w = quaternion[3]
+                path.poses.append(pose)
+            # else:
+            #     continue
+            
+        self.pub_path.publish(path)
+    
 
     def in_detection_area(self, point):
 
@@ -208,14 +231,15 @@ class CONTROL_PARKING(Node):
             # print(self.low_y_cone)
             dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
             print(dist)
-            if dist > 3.0:
+            if dist > 4.0:
                 self.idx = i
-                self.get_logger().info("ododododoo")
                 self.adjust_parking_path()
                 break
 
     def adjust_parking_path(self):
 
+        angle = self.standard_point.yaw - self.parking_path[-1][2]
+        
         goal_pose_c = self.rotate_points(
             np.array(
                 [self.low_y_cone[self.idx][0] + 1, self.low_y_cone[self.idx][1] - 1.5]
@@ -223,23 +247,24 @@ class CONTROL_PARKING(Node):
             -self.standard_point.yaw,
             np.array([self.standard_point.x, self.standard_point.y]),
         )
+
         dx = goal_pose_c[0] - self.parking_path[0][0]
         dy = goal_pose_c[1] - self.parking_path[0][1]
 
         self.parking_path = np.array(self.parking_path)
         self.parking_path[:, 0] += dx
         self.parking_path[:, 1] += dy
-
-        angle = self.standard_point.yaw - self.parking_path[0][2]
+        
         self.parking_path[:, :2] = self.rotate_points(
             self.parking_path[:, :2], angle, self.parking_path[0][:2]
         )  # fix
+        
         a = self.search_path_db.find_idx(
-            self.parking_path[0][0], self.parking_path[0][1], "data"
+            self.parking_path[-1][0], self.parking_path[-1][1], "data"
         )
-        self.goal = len(self.path_cx) - a - 1
+        print(a)
+        self.goal = len(self.search_path) - a - 1
         self.get_logger().info(f"{self.goal} is made")
-        # self.get_logger().info(f"{self.goal}")
 
     def detection(self, msg):
         if self.state == PARKING_STATE.SEARCH:
