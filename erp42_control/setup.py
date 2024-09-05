@@ -33,6 +33,7 @@ setup(
             'bezier_curve_making = erp42_control.bezier_curve_making:main',
             'controller_obstacle = erp42_control.controller_obstacle:main',
             'control_parking = erp42_control.control_parking:main',
+            'test = erp42_control.test:main',
         ],
     },
 )

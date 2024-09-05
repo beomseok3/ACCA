@@ -63,6 +63,7 @@ class State:
         )
 
     def update(self, msg):
+        print(msg)
         self.x = msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
 
@@ -100,7 +101,7 @@ class CONTROL_PARKING(Node):
         self.timer = self.create_timer(1, self.marker_timer)
 
         # search_path_initialize
-        self.search_path_db = DB("search_path.db")
+        self.search_path_db = DB("search_path_school.db")
         rows = self.search_path_db.read_db_n("data", "value_x", "value_y", "yaw")
         self.search_path = rows
         print("\nSEARCH_path_db_is_loaded")
