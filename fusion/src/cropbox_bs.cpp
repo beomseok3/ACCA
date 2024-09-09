@@ -47,7 +47,7 @@ private:
         if (mode_ == 0) {
             min_x = 0.0;
             max_x = 3.0;
-            min_y = -25.0;
+            min_y = -10.0;
             max_y = 0.0;
         } else if (mode_ == 1) {
             min_x = 0.0;

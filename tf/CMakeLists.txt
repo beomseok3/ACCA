@@ -8,7 +8,9 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -29,7 +31,6 @@ include_directories(
 add_executable(map_odom_tf_publisher_static src/map_odom_tf_publisher_static.cpp)
 add_executable(odometry_map_frame src/odometry_map_frame.cpp)
 add_executable(cone_pose_transform src/cone_pose_transform.cpp)
-
 ament_target_dependencies(map_odom_tf_publisher_static
   rclcpp
   tf2_ros
@@ -37,6 +38,15 @@ ament_target_dependencies(map_odom_tf_publisher_static
   sensor_msgs
   Eigen3
 )
+
+ament_target_dependencies (cone_pose_transform
+  rclcpp 
+  geometry_msgs 
+  tf2 
+  tf2_ros
+  tf2_geometry_msgs
+)
+
 
 
 ament_target_dependencies(odometry_map_frame
@@ -47,12 +57,13 @@ ament_target_dependencies(odometry_map_frame
   tf2_geometry_msgs
 )
 
-ament_target_dependencies(cone_pose_transform
-  rclcpp 
-  geometry_msgs 
-  tf2 
-  tf2_ros
-  tf2_geometry_msgs
+# install python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# install python executables
+install(PROGRAMS
+  scripts/cone_transform.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 
