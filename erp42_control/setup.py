@@ -34,6 +34,8 @@ setup(
             'controller_obstacle = erp42_control.controller_obstacle:main',
             'control_parking = erp42_control.control_parking:main',
             'test = erp42_control.test:main',
+            'state_machine = erp42_control.state_machine:main',
+
         ],
     },
 )

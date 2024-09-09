@@ -9,7 +9,7 @@ from geometry_msgs.msg import PoseStamped
 class DB():
     def __init__(self, db_name):
         
-        self.db_path = "/home/ps/planning/src/state_machine/db_file"+"/"+db_name
+        self.db_path = "/home/gjs/db_file"+"/"+db_name
         
         already_exist = os.path.isfile(self.db_path) #파일이 이미 존재했는지 확인
         
@@ -48,14 +48,6 @@ class DB():
                     (self.id, i , x, y, yaw),
                 )
         self.__conn.commit()
-    
-    def read_db_n(self,table,*n): # table(Path or Node) 에 해당하는 데이터를 모두 가져온다, 반환 형태 : [(,,,),(,,,), ....] 데이터 개수는 db에 따라 다름
-        n_str = ', '.join(n)
-        query = f"SELECT {n_str} FROM {table}"
-        self.__cur.execute(query)
-        rows = self.__cur.fetchall()
-        print(rows)
-        return rows
     
     
     def write_db_Path_con(self,data): # 덮어쓰지않고 data를 다음줄에 추가한다
@@ -142,3 +134,7 @@ class DB():
 
 
         
+    def __del__(self):
+        # Destructor to ensure the connection is closed when the object is deleted
+        if self.__conn:
+            self.__conn.close()
