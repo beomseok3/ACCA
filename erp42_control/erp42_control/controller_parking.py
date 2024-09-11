@@ -6,13 +6,12 @@ import math as m
 
 # ros2
 import rclpy
-from rclpy.node import Node
-from rclpy.qos import QoSProfile, qos_profile_system_default
+from rclpy.qos import  qos_profile_system_default
 
 #msg
 from erp42_msgs.msg import ControlMessage
 from geometry_msgs.msg import PoseArray,PoseStamped
-from nav_msgs.msg import Odometry, Path
+from nav_msgs.msg import Path
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import Header
 
@@ -24,57 +23,32 @@ from stanley import Stanley
 
 # DB
 try:
-    sys.path.append("/home/ps/planning/src/state_machine/state_machine")
     from DB import DB
 except Exception as e:
     print(e)
-    
 
 
-class PARKING_STATE(Enum):
+class Parking_state(Enum):
     SEARCH = 0
     PARKING = 1
     STOP = 2
     RETURN = 3
 
 
-class POSE:
+class Pose:
     def __init__(self, x, y, yaw):
         self.x = x
         self.y = y
         self.yaw = yaw
-
-# class State:
-#     def __init__(self, node, topic):
-#         print("cancna")
-#         self.node = node
-#         self.x = 0.0  # m
-#         self.y = 0.0  # m
-#         self.yaw = 0.0  # rad
-#         self.v = 0.0  # m/s
         
-#         self.node.create_subscription(
-#             Odometry,
-#             topic,
-#             callback = self.update,
-#             qos_profile= qos_profile_system_default
-#         )
-        
-    def update(self,msg):
-        self.x = msg.pose.pose.position.x
-        self.y = msg.pose.pose.position.y
-        
-        quaternion = msg.pose.pose.orientation
-        _,_, self.yaw = euler_from_quaternion(quaternion.x,quaternion.y,quaternion.z,quaternion.w)
-        
-        self.v = m.sqrt(msg.twist.twist.linear.x**2 + msg.twist.twist.linear.y**2)
-        
+    
+#sub_cone        
 class Detection:
     def __init__(self,node,topic):
         self.node = node
-        self.low_y_cone = []
+        self.cone = []
         self.node.create_subscription(
-            Odometry,
+            PoseArray,
             topic,
             callback = self.update,
             qos_profile = qos_profile_system_default
@@ -85,7 +59,7 @@ class Detection:
 
 
 
-class CONTROL_PARKING():
+class Control_pakring():
     def __init__(self,node):
 
         self.node = node
@@ -95,36 +69,37 @@ class CONTROL_PARKING():
         rows = self.search_path_db.read_db_n("data", "value_x", "value_y", "yaw")
         self.search_path = rows
 
-
+        self.j =0
+        
         # parking_path
         self.parking_path_db = DB("school_gjs.db")
         self.parking_path = self.parking_path_db.read_db_n(
             "data", "value_x", "value_y", "yaw"
         )
+        self.parking_path = np.array(self.parking_path)
         
         self.path_cx = [row[0] for row in rows]
         self.path_cy = [row[1] for row in rows]
         self.path_cyaw = [row[2] for row in rows]
         
         # params
-        self.standard_point = POSE(
+        self.standard_point = Pose(
             self.search_path[137][0], self.search_path[137][1], self.search_path[137][2]
         )  
         # kcity : 137 , school : 44
-        self.min_x = self.standard_point.x - 10.0
-        self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -20.0
-        self.max_y = self.standard_point.y +10.0
+        self.min_x = self.standard_point.x - 1.0
+        self.max_x = self.standard_point.x + 30.0
+        self.min_y = self.standard_point.y -4.0
+        self.max_y = self.standard_point.y 
 
         self.marker_id = 0
         
         # instance
-        # self.state = State(node, "/localization/kinematic_state")
         self.st = Stanley()
-        self.detection = Detection(node,"/cone_pose_map")
+        self.dt = Detection(node,"/cone_pose_map")
         
         # parking_state_machine
-        self.parking_state = PARKING_STATE.SEARCH
+        self.parking_state = Parking_state.SEARCH
         self.goal = 0
         self.target_idx = 0
         self.stop_start_time = 0
@@ -133,8 +108,11 @@ class CONTROL_PARKING():
 
         # visualize
         self.low_y_cone_marker_timer = node.create_timer(1, self.marker_timer)
-        self.path_timer = node.create_timer(1,self.path_timer)
-        self.pub_path = node.create_publisher(Path,"path",qos_profile=10)
+        
+        self.path_timer = node.create_timer(1,self.path_for_visu)
+        
+        self.pub_path = node.create_publisher(Path,"path",qos_profile_system_default)
+        
         self.pub_low_y_cone_marker = node.create_publisher(
             MarkerArray, "low_y_cone", qos_profile_system_default
         )
@@ -174,10 +152,10 @@ class CONTROL_PARKING():
         return False
     # visualize
     def marker_timer(self):
-        print("~~~~~~~~~~~")
+        print(f"~~~~~~~~~~~{self.low_y_cone}~~~~~~~~~~~~~~")
         if self.low_y_cone:
             marker_array = MarkerArray()
-            origin_low_y_cone = Detection.rotate_points(
+            origin_low_y_cone = self.rotate_points(
                 np.array(self.low_y_cone),
                 -self.standard_point.yaw,
                 np.array([self.standard_point.x, self.standard_point.y]),
@@ -210,7 +188,7 @@ class CONTROL_PARKING():
                 marker_array.markers.append(marker)
             self.pub_low_y_cone_marker.publish(marker_array)
     
-    def path_timer(self):
+    def path_for_visu(self):
         path = Path()
         path.header = Header()
         path.header.stamp = self.node.get_clock().now().to_msg()
@@ -232,30 +210,30 @@ class CONTROL_PARKING():
     
     def detection(self):
         print("detection")
-        if self.parking_state == PARKING_STATE.SEARCH:
-            for p1 in [(pose.position.x, pose.position.y) for pose in Detection.cone]:
-                rotated_p1 = self.rotate_points(
-                    np.array([p1]),
-                    self.standard_point.yaw,
-                    np.array([self.standard_point.x, self.standard_point.y]),
-                )
-                rotated_p1 = tuple(rotated_p1[0])
-                if not self.euclidean_duplicate(rotated_p1):
-                    if self.in_detection_area(rotated_p1):
-                        self.low_y_cone.append(rotated_p1)
-                        self.update_parking_path()
+        for p1 in [(pose.position.x, pose.position.y) for pose in self.dt.cone]:
+            rotated_p1 = self.rotate_points(
+                np.array([p1]),
+                self.standard_point.yaw,
+                np.array([self.standard_point.x, self.standard_point.y]),
+            )
+            rotated_p1 = tuple(rotated_p1[0])
+            if not self.euclidean_duplicate(rotated_p1):
+                if self.in_detection_area(rotated_p1):
+                    self.low_y_cone.append(rotated_p1)
+                    self.update_parking_path()
 
 
     def update_parking_path(self):
 
         for i in range(len(self.low_y_cone) - 1):
-            # print(self.low_y_cone)
             dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
             print(dist)
             if dist > 4.0:
                 self.idx = i
-                self.adjust_parking_path()
-                break
+                if self.j ==0:
+                    self.adjust_parking_path()
+                    self.j += 1 
+                    break
 
     def adjust_parking_path(self):
 
@@ -276,8 +254,8 @@ class CONTROL_PARKING():
         self.parking_path[:, 1] += dy
         
         self.parking_path[:, :2] = self.rotate_points(
-            self.parking_path[:, :2], angle, self.parking_path[0][:2]
-        )  # fix
+            self.parking_path[:, :2], -angle, self.parking_path[0][:2]
+        )  
         
         a = self.search_path_db.find_idx(
             self.parking_path[-1][0], self.parking_path[-1][1], "data"
@@ -286,14 +264,14 @@ class CONTROL_PARKING():
         print(f"{self.goal} is made")
 
     def control_parking(self,State):
-        if self.parking_state == PARKING_STATE.SEARCH:
-            self.detection
+        self.detection()
             
         if self.target_idx >= len(self.path_cx) - self.goal - 1:
             print("change")
+            print(self.parking_state,self.target_idx,len(self.path_cx)-1)
 
-            if self.parking_state == PARKING_STATE.SEARCH:
-                self.parking_state = PARKING_STATE(self.parking_state.value + 1)  # SEARCH -> PARKING
+            if self.parking_state == Parking_state.SEARCH:
+                self.parking_state = Parking_state(self.parking_state.value + 1)  # SEARCH -> PARKING
                 self.goal = 0
                 self.reverse_path = True
                 self.path_cx = self.parking_path[::-1, 0]  # 첫 번째 열 (cx 값들)
@@ -301,8 +279,8 @@ class CONTROL_PARKING():
                 self.path_cyaw = self.parking_path[::-1, 2]  # 세 번째 열 (cyaw 값들)
                 self.target_idx = 0
 
-            elif self.parking_state == PARKING_STATE.PARKING:
-                self.parking_state = PARKING_STATE(self.parking_state.value + 1)  # PARKING -> STOP
+            elif self.parking_state == Parking_state.PARKING:
+                self.parking_state = Parking_state(self.parking_state.value + 1)  # PARKING -> STOP
                 self.stop_start_time = time.time()  # STOP 상태로 전환된 시간을 기록
                 self.reverse_path = False
                 self.path_cx = self.parking_path[:, 0]  # 첫 번째 열 (cx 값들)
@@ -311,9 +289,9 @@ class CONTROL_PARKING():
                 self.target_idx = 0
 
         else:
-            if self.parking_state == PARKING_STATE.STOP:
+            if self.parking_state == Parking_state.STOP:
                 if time.time() - self.stop_start_time >= 5.0:
-                    self.parking_state = PARKING_STATE(self.parking_state.value + 1)
+                    self.parking_state = Parking_state(self.parking_state.value + 1)
                     self.target_idx = 0  # STOP -> RETURN
 
                 msg = ControlMessage()
@@ -329,42 +307,40 @@ class CONTROL_PARKING():
                 return msg, False
 
             else:  # SEARCH, PARKING, RETURN
-                if self.parking_state == PARKING_STATE.PARKING:
-                    steer, self.target_idx, _, _ = self.st.stanley_control(
-                        State,
-                        self.path_cx,
-                        self.path_cy,
-                        self.path_cyaw,
-                        reverse=self.reverse_path,
-                    )
-                    msg = ControlMessage()
-                    msg.mora, msg.estop, msg.gear, msg.speed, msg.steer, msg.brake = (
-                        0,
-                        0,
-                        0,
-                        3,
-                        int(m.degrees(-1 * steer)),  # TO DO: Check reverse /A: cmd msg 다름 m.degrees(-1) = -57.3
-                        0,
-                    )
-                    print(msg)
+                if self.parking_state == Parking_state.PARKING:
+                    try:
+                        steer, self.target_idx, _, _ = self.st.stanley_control(
+                            State,
+                            self.path_cx,
+                            self.path_cy,
+                            self.path_cyaw,
+                            reverse=self.reverse_path,
+                        )
+                        msg = ControlMessage(mora=0, estop=0,gear=0,speed = 3, steer = int(m.degrees(-1* steer)),brake=0)
+                        print(msg)
+                    except Exception as e:
+                        print(f"Stanley:{e}\n",f"{State}")
                     return msg, False
                 else:
-                    steer, self.target_idx, _, _ = self.st.stanley_control(
-                        State,
-                        self.path_cx,
-                        self.path_cy,
-                        self.path_cyaw,
-                        reverse=self.reverse_path,
-                    )
-                    msg = ControlMessage()
-                    msg.mora, msg.estop, msg.gear, msg.speed, msg.steer, msg.brake = (
-                        0,
-                        0,
-                        2,
-                        3,
-                        int(m.degrees(-1*steer)),
-                        0,
-                    )
-                    print(msg)
+                    try:
+                        steer, self.target_idx, _, _ = self.st.stanley_control(
+                            State,
+                            self.path_cx,
+                            self.path_cy,
+                            self.path_cyaw,
+                            reverse=self.reverse_path,
+                        )
+                        msg = ControlMessage()
+                        msg.mora, msg.estop, msg.gear, msg.speed, msg.steer, msg.brake = (
+                            0,
+                            0,
+                            2,
+                            3,
+                            int(m.degrees(-1*steer)),
+                            0,
+                        )
+                        print(msg)
+                    except Exception as e:
+                        print(f"{e}: stanley")
                     return msg, False
 

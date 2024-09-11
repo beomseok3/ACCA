@@ -298,7 +298,7 @@ class StateMachine():
         # self.obstacle = Obstacle()
         # self.pickup = Pickup(self.node)
         # self.delivery = Delivery(self.node)
-        self.parking = CONTROL_PARKING(node)
+        self.parking = Control_pakring(node)
 
 
 

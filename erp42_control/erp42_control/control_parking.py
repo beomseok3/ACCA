@@ -117,13 +117,13 @@ class CONTROL_PARKING(Node):
         # detection
         self.low_y_cone = []
         self.standard_point = POSE(
-            self.search_path[44][0], self.search_path[44][1], self.search_path[44][2]
+            self.search_path[137][0], self.search_path[137][1], self.search_path[137][2]
         )  # kcity : 137 , school : 44
         # define_detection_area
-        self.min_x = self.standard_point.x - 1.0
-        self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -2.0
-        self.max_y = self.standard_point.y 
+        self.min_x = self.standard_point.x - 100000.0
+        self.max_x = self.standard_point.x + 200000.0
+        self.min_y = self.standard_point.y -20000.0
+        self.max_y = self.standard_point.y +10000
 
         self.marker_id = 0
         self.i = 0

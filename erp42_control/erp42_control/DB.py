@@ -125,6 +125,24 @@ class DB():
         
         return cx, cy, cyaw, cv
 
+    def find_idx(self,x,y,table):# idx ,id
+        self.__cur.execute(f"SELECT idx,value_x,value_y FROM {table}")
+        rows = self.__cur.fetchall()
+        print(rows)
+        min_err  = 10000
+        idx = 0
+        for row in rows:
+            x_value = row[1]
+            y_value = row[2]
+            
+            x_err = (x_value - x)**2
+            y_err = (y_value - y)**2
+            total_err = x_err + y_err
+            
+            if total_err < min_err:
+                min_err = total_err
+                idx = row[0]
+        return idx
 
     
     
