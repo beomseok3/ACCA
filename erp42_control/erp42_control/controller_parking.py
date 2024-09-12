@@ -6,7 +6,7 @@ import math as m
 
 # ros2
 import rclpy
-from rclpy.qos import  qos_profile_system_default
+from rclpy.qos import  qos_profile_system_default, QoSProfile
 
 #msg
 from erp42_msgs.msg import ControlMessage
@@ -92,7 +92,7 @@ class Control_pakring():
         self.min_y = self.standard_point.y -4.0
         self.max_y = self.standard_point.y 
 
-        self.marker_id = 0
+        self.marker_id = 1
         
         # instance
         self.st = Stanley()
@@ -116,8 +116,9 @@ class Control_pakring():
         self.pub_low_y_cone_marker = node.create_publisher(
             MarkerArray, "low_y_cone", qos_profile_system_default
         )
-
-
+        qos_profile = QoSProfile(depth=10)
+        self.goal_pose_marker = node.create_publisher(Marker,"marker_goal",qos_profile)
+    
     def rotate_points(self, points, angle, origin):
         if points is not None:
 
@@ -152,7 +153,6 @@ class Control_pakring():
         return False
     # visualize
     def marker_timer(self):
-        print(f"~~~~~~~~~~~{self.low_y_cone}~~~~~~~~~~~~~~")
         if self.low_y_cone:
             marker_array = MarkerArray()
             origin_low_y_cone = self.rotate_points(
@@ -209,7 +209,6 @@ class Control_pakring():
         self.pub_path.publish(path)
     
     def detection(self):
-        print("detection")
         for p1 in [(pose.position.x, pose.position.y) for pose in self.dt.cone]:
             rotated_p1 = self.rotate_points(
                 np.array([p1]),
@@ -224,13 +223,12 @@ class Control_pakring():
 
 
     def update_parking_path(self):
-
-        for i in range(len(self.low_y_cone) - 1):
-            dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
-            print(dist)
-            if dist > 4.0:
-                self.idx = i
-                if self.j ==0:
+        if self.j ==0:
+            for i in range(len(self.low_y_cone) - 1):
+                dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
+                print(dist)
+                if dist > 4.0:
+                    self.idx = i
                     self.adjust_parking_path()
                     self.j += 1 
                     break
@@ -261,18 +259,52 @@ class Control_pakring():
             self.parking_path[-1][0], self.parking_path[-1][1], "data"
         )
         self.goal = len(self.search_path) - a - 1
-        print(f"{self.goal} is made")
 
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.header.stamp = self.node.get_clock().now().to_msg()
+        
+        marker.ns = "goal"
+        marker.id = 0
+        marker.type = Marker.SPHERE
+        
+        marker.action = Marker.ADD
+        # Marker의 위치 설정
+        marker.pose.position.x = self.search_path[a][0]
+        marker.pose.position.y = self.search_path[a][1]
+        marker.pose.position.z = 1.0
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+         # Marker의 크기 설정 (x, y, z 방향의 크기)
+        marker.scale.x = 0.5
+        marker.scale.y = 0.5
+        marker.scale.z = 0.5
+
+        # Marker의 색상 설정 (R, G, B, A 값)
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        # Marker의 수명을 무한대로 설정
+        marker.lifetime.sec = 0
+        marker.lifetime.nanosec = 0
+
+        # 퍼블리시
+        self.goal_pose_marker.publish(marker)
+        
     def control_parking(self,State):
+        self.node.get_logger().info(f"{self.parking_state},{self.target_idx},{len(self.path_cx) - 1}")
         self.detection()
             
         if self.target_idx >= len(self.path_cx) - self.goal - 1:
-            print("change")
-            print(self.parking_state,self.target_idx,len(self.path_cx)-1)
+            
 
             if self.parking_state == Parking_state.SEARCH:
                 self.parking_state = Parking_state(self.parking_state.value + 1)  # SEARCH -> PARKING
-                self.goal = 0
+                self.goal = 10
                 self.reverse_path = True
                 self.path_cx = self.parking_path[::-1, 0]  # 첫 번째 열 (cx 값들)
                 self.path_cy = self.parking_path[::-1, 1]  # 두 번째 열 (cy 값들)
@@ -303,7 +335,6 @@ class Control_pakring():
                     0,
                     200,
                 )
-                print(msg)
                 return msg, False
 
             else:  # SEARCH, PARKING, RETURN
@@ -317,7 +348,6 @@ class Control_pakring():
                             reverse=self.reverse_path,
                         )
                         msg = ControlMessage(mora=0, estop=0,gear=0,speed = 3, steer = int(m.degrees(-1* steer)),brake=0)
-                        print(msg)
                     except Exception as e:
                         print(f"Stanley:{e}\n",f"{State}")
                     return msg, False
@@ -339,7 +369,6 @@ class Control_pakring():
                             int(m.degrees(-1*steer)),
                             0,
                         )
-                        print(msg)
                     except Exception as e:
                         print(f"{e}: stanley")
                     return msg, False
