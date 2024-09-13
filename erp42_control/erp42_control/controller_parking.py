@@ -87,10 +87,10 @@ class Control_pakring():
             self.search_path[153][0], self.search_path[153][1], self.search_path[153][2]
         )  
         # kcity : 153 , school : 44
-        self.min_x = self.standard_point.x -1.0
+        self.min_x = self.standard_point.x -1.5
         self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -3.5
-        self.max_y = self.standard_point.y  
+        self.min_y = self.standard_point.y -4.0
+        self.max_y = self.standard_point.y  -1.5
 
         self.marker_id = 1
         
@@ -192,7 +192,7 @@ class Control_pakring():
             point = Point()
             point.x = x
             point.y = y
-            point.z = 0.0
+            point.z = -1.0
             line_marker.points.append(point)
 
         # Close the loop by adding the first point again

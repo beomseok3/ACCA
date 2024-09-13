@@ -65,7 +65,7 @@ def generate_launch_description():
         # DeclareLaunchArgument('th_dist', default_value='0.03'),
 
         # obstacle avoidance
-        DeclareLaunchArgument('input_topic', default_value='/velodyne_points'),
+        DeclareLaunchArgument('input_topic', default_value='/cropbox_filtered'),
         DeclareLaunchArgument('no_ground_point_topic', default_value='/points_no_ground'),
         DeclareLaunchArgument('ground_point_topic', default_value='/points_ground'),
         DeclareLaunchArgument('all_points_topic', default_value='/all_points'),
