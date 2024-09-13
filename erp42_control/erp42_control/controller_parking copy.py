@@ -10,13 +10,14 @@ from rclpy.qos import  qos_profile_system_default, QoSProfile
 
 #msg
 from erp42_msgs.msg import ControlMessage
-from geometry_msgs.msg import PoseArray,PoseStamped,Point
+from geometry_msgs.msg import PoseArray,PoseStamped
 from nav_msgs.msg import Path
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import Header
 
 #tf
 from tf_transformations import *
+# from cone_pose_transform import cone_pose_transform
 
 # stanley
 from stanley import Stanley
@@ -54,8 +55,10 @@ class Detection:
             qos_profile = qos_profile_system_default
         )
     def update(self,msg):
-        self.cone = msg.poses
-    
+        
+        
+        self.cone = x # tf data
+        pass
 
 
 
@@ -84,19 +87,19 @@ class Control_pakring():
         
         # params
         self.standard_point = Pose(
-            self.search_path[153][0], self.search_path[153][1], self.search_path[153][2]
+            self.search_path[137][0], self.search_path[137][1], self.search_path[137][2]
         )  
-        # kcity : 153 , school : 44
-        self.min_x = self.standard_point.x -1.0
-        self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -3.5
-        self.max_y = self.standard_point.y  
+        # kcity : 137 , school : 44
+        self.min_x = self.standard_point.x - 1.0
+        self.max_x = self.standard_point.x + 30.0
+        self.min_y = self.standard_point.y -4.0
+        self.max_y = self.standard_point.y 
 
         self.marker_id = 1
         
         # instance
         self.st = Stanley()
-        self.dt = Detection(node,"/cone_pose_map")
+        self.dt = Detection(node,"/cone_poses")
         
         # parking_state_machine
         self.parking_state = Parking_state.SEARCH
@@ -113,127 +116,11 @@ class Control_pakring():
         
         self.pub_path = node.create_publisher(Path,"path",qos_profile_system_default)
         
-        self.pub_low_y_cone_marker = node.create_publisher(MarkerArray, "low_y_cone", qos_profile_system_default)
-        
-        self.goal_pose_marker = node.create_publisher(Marker,"marker_goal",qos_profile_system_default)
-        
-        self.standard_point_marker = node.create_publisher(Marker,"standard_point",qos_profile_system_default)
-        
-        self.detection_area_marker_array = node.create_publisher(MarkerArray,"detection_area",qos_profile_system_default)
-    
-        
-        
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.header.stamp = self.node.get_clock().now().to_msg()
-        
-        marker.ns = "standard_point"
-        marker.id = 100
-        marker.type = Marker.SPHERE
-        
-        marker.action = Marker.ADD
-        # Marker의 위치 설정
-        marker.pose.position.x = self.standard_point.x
-        marker.pose.position.y = self.standard_point.y
-        marker.pose.position.z = 1.0
-        marker.pose.orientation.x = 0.0
-        marker.pose.orientation.y = 0.0
-        marker.pose.orientation.z = 0.0
-        marker.pose.orientation.w = 1.0
-         # Marker의 크기 설정 (x, y, z 방향의 크기)
-        marker.scale.x = 0.5
-        marker.scale.y = 0.5
-        marker.scale.z = 0.5
-
-        # Marker의 색상 설정 (R, G, B, A 값)
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        # Marker의 수명을 무한대로 설정
-        marker.lifetime.sec = 0
-        marker.lifetime.nanosec = 0
-
-        # 퍼블리시
-        self.standard_point_marker.publish(marker)
-        combinations = [
-    (self.min_x, self.min_y),  # Bottom-left
-    (self.max_x, self.min_y),  # Bottom-right
-    (self.max_x, self.max_y),  # Top-right
-    (self.min_x, self.max_y),  # Top-left
-]
-        combinations = np.array(combinations)
-
-        combinations = self.rotate_points(combinations,-self.standard_point.yaw,np.array([self.standard_point.x,self.standard_point.y]))
-
-        
-                # Create marker array for both spheres and the line strip
-        marker_array = MarkerArray()
-
-        # Create a line strip marker for the outline
-        line_marker = Marker()
-        line_marker.header.frame_id = "map"
-        line_marker.header.stamp = self.node.get_clock().now().to_msg()
-        line_marker.ns = "dt_area_outline"
-        line_marker.id = self.marker_id
-        self.marker_id += 500  # Increment unique marker ID
-        line_marker.type = Marker.LINE_STRIP
-        line_marker.action = Marker.ADD
-        line_marker.pose.orientation.w = 1.0  # Identity quaternion
-        line_marker.scale.x = 0.25  # Thickness of the lines
-        line_marker.color.a = 1.0
-        line_marker.color.r = 1.0  # Set the line color to red
-        line_marker.color.g = 0.0
-        line_marker.color.b = 0.0
-
-        # Add the corner points to the line strip
-        for x, y in combinations:
-            point = Point()
-            point.x = x
-            point.y = y
-            point.z = 0.0
-            line_marker.points.append(point)
-
-        # Close the loop by adding the first point again
-        first_point = Point()
-        first_point.x = combinations[0][0]
-        first_point.y = combinations[0][1]
-        first_point.z = 0.0
-        line_marker.points.append(first_point)
-
-        # Add the line strip to the marker array
-        marker_array.markers.append(line_marker)
-
-        # (Optional) You can still add sphere markers at the corners if needed
-        for x, y in combinations:
-            marker = Marker()
-            marker.header.frame_id = "map"
-            marker.header.stamp = self.node.get_clock().now().to_msg()
-            marker.ns = "dt_area"
-            marker.id = self.marker_id
-            self.marker_id += 1500
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.pose.position.x = x
-            marker.pose.position.y = y
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.w = 1.0
-            marker.scale.x = 0.5
-            marker.scale.y = 0.5
-            marker.scale.z = 0.5
-            marker.color.a = 1.0
-            marker.color.r = 0.0
-            marker.color.g = 0.0
-            marker.color.b = 1.0
-            marker.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
-
-            marker_array.markers.append(marker)
-
-        # Publish the marker array
-        self.detection_area_marker_array.publish(marker_array)
-    
-
+        self.pub_low_y_cone_marker = node.create_publisher(
+            MarkerArray, "low_y_cone", qos_profile_system_default
+        )
+        qos_profile = QoSProfile(depth=10)
+        self.goal_pose_marker = node.create_publisher(Marker,"marker_goal",qos_profile)
     
     def rotate_points(self, points, angle, origin):
         if points is not None:
