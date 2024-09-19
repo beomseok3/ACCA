@@ -13,6 +13,11 @@ setup(
         ('share/ament_index/resource_index/packages',['resource/' + package_name]), 
         ('share/' + package_name, ['package.xml']),
         ('lib/' + package_name, [package_name+'/stanley.py']),
+        ('lib/' + package_name, [package_name+'/DB.py']),
+        ('lib/' + package_name, [package_name+'/controller_obstacle.py']),
+        ('lib/' + package_name, [package_name+'/controller_parking.py']),
+        ('lib/' + package_name, [package_name+'/Modifier_param.py']),
+
         (os.path.join('share', package_name_, 'msg'), glob('msg/*.msg')),
     ],
     install_requires=['setuptools'],

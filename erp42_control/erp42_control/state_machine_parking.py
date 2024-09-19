@@ -7,6 +7,8 @@ from geometry_msgs.msg import PoseStamped
 from erp42_msgs.msg import SerialFeedBack, ControlMessage
 
 from stanley import Stanley
+import sys
+sys.path.append("/home/ps/acca/src/erp42_control/erp42_control")
 from DB import DB
 import numpy as np
 import math as m
@@ -16,12 +18,10 @@ from enum import Enum
 import threading
 
 
-from controller_obstacle import Obstacle
+# from controller_obstacle import Obstacle
 # from controller_pickup import Pickup
 # from controller_delivery import Delivery
-from controller_parking import Pakring
-
-from Modifier_param import set_param
+from controller_parking import *
 
 
 
@@ -124,8 +124,12 @@ class SpeedSupporter():
 # enum class의 각 state는 주행 순서대로 설정
 class State(Enum):    
 #kcity mission
-    # A1A2 = "driving_A"
-    # A2A3 = "pickup_A"
+    # # A1A2 = "driving_A"
+    # A1A2 = "parking_L"
+
+    # # A2A3 = "pickup_A"
+    # A2A3 = "driving_A"
+
 
     # A3A4 = "driving_B"
     # A4A5 = "obstacle_B"
@@ -162,52 +166,51 @@ class State(Enum):
 
     # A25A26 = "driving_M"
 
+#  kcity global driving test
+    A1A2 = "driving_A"
+    A2A3 = "driving_B"
 
- #kcity global driving test
-    A1A2 = "driving_A" #driving
-    A2A3 = "driving_c" #pickup
+    A3A4 = "driving_C"
+    A4A5 = "driving_D"
 
-    A3A4 = "driving_B" #driving
-    A4A5 = "driving_t" #small avoidance
+    A5A6 = "driving_E"
+    A6A7 = "driving_F"
 
-    A5A6 = "driving_C" #driving
-    A6A7 = "driving_D" #driving
+    A7A8 = "driving_G"
+    A8A9 = "driving_H"
 
-    A7A8 = "driving_E" #driving
-    A8A9 = "driving_F" #traffic
-
-    A9A10 = "driving_G" #driving
-    A10A11 = "driving_H" #traffic
+    A9A10 = "driving_I"
+    A10A11 = "driving_J"
     
-    A11A12 = "driving_I" #driving
-    A12A13 = "driving_l" #big avoidance
+    A11A12 = "driving_K"
+    A12A13 = "driving_L"
 
-    A13A14 = "driving_K" #driving
-    A14A15 = "driving_L" #traffic
+    A13A14 = "driving_M"
+    A14A15 = "driving_N"
 
-    A15A16 = "driving_h" #delivery
-    A16A17 = "driving_M" #driving
+    A15A16 = "driving_O"
+    A16A17 = "driving_P"
 
-    A17A18 = "driving_N" #driving
-    A18A19 = "driving_O" #traffic
+    A17A18 = "driving_Q"
+    A18A19 = "driving_R"
 
-    A19A20 = "driving_P" #driving
-    A20A21 = "driving_Q" #traffic
+    A19A20 = "driving_S"
+    A20A21 = "driving_T"
 
-    A21A22 = "driving_R" #driving
-    A22A23 = "driving_S" #driving
+    A21A22 = "driving_U"
+    A22A23 = "driving_V"
 
-    A23A24 = "driving_T" #driving
-    A24A25 = "driving_U" #driving
+    A23A24 = "driving_W"
+    A24A25 = "driving_X"
 
-    A25A26 = "driving_V" #driving
-    A26A27 = "driving_W" #driving
+    A25A26 = "driving_Y"
+    A26A27 = "driving_Z"
 
-    A27A28 = "driving_X" #traffic
-    A28A29 = "driving_Y" #driving
-    A29A30 = "driving_Z" #traffic
-    A30A31 = "parking_a" #driving
-    # A31A32 = "parking_a" #parking
+    A27A28 = "driving_a"
+    A28A29 = "driving_b"
+    A29A30 = "driving_c"
+    A30A31 = "driving_d"
+    A31A32 = "parking_a"
 
 
 # school test (mission)
@@ -273,7 +276,7 @@ class GetOdometry():
         _,_,self.yaw = euler_from_quaternion([msg.pose.pose.orientation.x,msg.pose.pose.orientation.y,msg.pose.pose.orientation.z,msg.pose.pose.orientation.w])
         
     def callback_erp(self,msg):
-        self.v = msg.speed
+        self.v = msg.speed # hdr,ctr을 안 쓰는데 필요할까?
 
 class StateMachine():
     def __init__(self, node, odometry, path, state):
@@ -292,10 +295,10 @@ class StateMachine():
         self.mission_finish = False
 
 
-        self.obstacle = Obstacle(self.node)
+        # self.obstacle = Obstacle()
         # self.pickup = Pickup(self.node)
         # self.delivery = Delivery(self.node)
-        self.parking = Pakring(self.node)
+        self.parking = Control_pakring(node)
 
 
 
@@ -333,17 +336,16 @@ class StateMachine():
             steer, self.target_idx, hdr, ctr = self.st.stanley_control(self.odometry, self.path.cx, self.path.cy, self.path.cyaw)
             target_speed = self.set_target_speed()
             adapted_speed = self.ss.adaptSpeed(target_speed, hdr, ctr, min_value=4, max_value=15) # 에러(hdr, ctr) 기반 목표 속력 조정
-            # speed = self.pid.PIDControl(self.odometry.v * 3.6, adapted_speed) # speed 조정 (PI control) 
+            speed = self.pid.PIDControl(self.odometry.v * 3.6, adapted_speed) # speed 조정 (PI control) 
             brake = self.cacluate_brake(adapted_speed) # brake 조정
 
-            msg.speed = int(adapted_speed) * 10
-            # msg.speed = 40
+            # msg.speed = speed * 10
+            msg.speed = 30
             msg.steer = int(m.degrees((-1) * steer))
             msg.gear = 2
             msg.brake = int(brake)
         
         elif self.state.value[:-2] == "parking":
-            set_param("bs_cropbox_filter","detection_area","[0.,3.,-10.,0.]")
             msg, self.mission_finish = self.parking.control_parking(self.odometry)
 
         elif self.state.value[:-2] == "obstacle":
@@ -362,7 +364,6 @@ class StateMachine():
             print("error: ", self.state.value)
 
         return msg
-
 
 
     def set_target_speed(self):
@@ -412,7 +413,7 @@ def main():
     node = rclpy.create_node("state_machine_node")
 
     # Declare Params
-    node.declare_parameter("file_name", "0907_1123_test.db")
+    node.declare_parameter("file_name", "0901_1615_test.db")
     node.declare_parameter("odom_topic", "/localization/kinematic_state")
     # node.declare_parameter("odom_topic", "/localization/kinematic_state2")
 

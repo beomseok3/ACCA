@@ -59,7 +59,7 @@ class Detection:
 
 
 
-class Control_pakring():
+class Pakring():
     def __init__(self,node):
 
         self.node = node
