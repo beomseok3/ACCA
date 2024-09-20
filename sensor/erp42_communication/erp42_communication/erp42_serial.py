@@ -53,7 +53,6 @@ class Control:
         self.control_sub = node.create_subscription(
             ControlMessage, "/cmd_msg", self.cmdCallback, qos_profile
         )
-        node.create_subscription(Bool, "estop", self.callback_estop, qos_profile)
 
         self.feedback_msg = SerialFeedBack()
         self.cmd_msg = ControlMessage()
@@ -233,15 +232,15 @@ def main(args=None):
     rclpy.init(args=args)
     node = rclpy.create_node("erp42_serial")
 
-    port_param = node.declare_parameter(
-        "/erp42_serial/erp_port", "/dev/ttyUSB0"
-    )  # launch파일에 파라미터 정의해서 가져오기 안 됨. 다 정상적으로 되면 마지막에 이 부분 공부해보기
+    # 매개변수 선언 및 기본값 설정
+    node.declare_parameter('erp_port', '/dev/ttyUSB0')
 
-    port = port_param.value
-    print(port)
-    print("connected successfully!!")
+    # 매개변수 가져오기
+    erp_port = node.get_parameter('erp_port').get_parameter_value().string_value
 
-    control = Control(port_num=port, node=node)
+    node.get_logger().info(f'ERP42 Serial Port: {erp_port}')
+    
+    control = Control(port_num=erp_port, node=node)
 
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()

@@ -4,7 +4,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 class ConePoseTransformer : public rclcpp::Node
 {
@@ -26,24 +26,34 @@ private:
     {
         geometry_msgs::msg::PoseArray transformed_poses;
         transformed_poses.header.frame_id = "map";
-        transformed_poses.header.stamp = msg->header.stamp;
+        transformed_poses.header.stamp = this->get_clock()->now();
 
         for (const auto& pose : msg->poses)
         {
             geometry_msgs::msg::PoseStamped pose_stamped, transformed_pose_stamped;
-            pose_stamped.header = msg->header;
+            pose_stamped.header.frame_id = "velodyne";
+            pose_stamped.header.stamp = rclcpp::Time();
+            // pose_stamped.header = msg -> header;
+
+
             pose_stamped.pose = pose;
 
             try
             {
                 tf_buffer_.transform(pose_stamped, transformed_pose_stamped, "map", tf2::durationFromSec(1.0));
+                RCLCPP_INFO(this->get_logger(), "HELLO WORLD!2");
                 transformed_poses.poses.push_back(transformed_pose_stamped.pose);
+                RCLCPP_INFO(this->get_logger(), "HELLO WORLD!");
             }
             catch (tf2::TransformException &ex)
             {
                 RCLCPP_WARN(this->get_logger(), "Transform failed: %s", ex.what());
             }
+
+            break;
         }
+
+            
 
         cone_pose_map_pub_->publish(transformed_poses);
     }

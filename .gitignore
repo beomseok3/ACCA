@@ -260,6 +260,10 @@ CATKIN_IGNORE
 ### ROS2 ###
 install/
 log/
+/build/
+build/
+rosbag/
+db_file/
 
 # Ignore generated docs
 

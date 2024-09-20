@@ -13,6 +13,11 @@ setup(
         ('share/ament_index/resource_index/packages',['resource/' + package_name]), 
         ('share/' + package_name, ['package.xml']),
         ('lib/' + package_name, [package_name+'/stanley.py']),
+        ('lib/' + package_name, [package_name+'/DB.py']),
+        ('lib/' + package_name, [package_name+'/controller_obstacle.py']),
+        ('lib/' + package_name, [package_name+'/controller_parking.py']),
+        ('lib/' + package_name, [package_name+'/Modifier_param.py']),
+
         (os.path.join('share', package_name_, 'msg'), glob('msg/*.msg')),
     ],
     install_requires=['setuptools'],
@@ -33,6 +38,9 @@ setup(
             'bezier_curve_making = erp42_control.bezier_curve_making:main',
             'controller_obstacle = erp42_control.controller_obstacle:main',
             'control_parking = erp42_control.control_parking:main',
+            'test = erp42_control.test:main',
+            'state_machine = erp42_control.state_machine:main',
+
         ],
     },
 )

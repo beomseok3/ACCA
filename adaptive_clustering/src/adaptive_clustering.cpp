@@ -43,7 +43,7 @@ public:
       z_axis_min_(-1.2),
       z_axis_max_(1.0),
       cluster_size_min_(30),
-      cluster_size_max_(20000000),
+      cluster_size_max_(20000000),  // cropbox off --> clustering X  Why? 너무 많은 군집이 생겨서?
       x_threshold_(2),
       y_threshold_(2),
       cone_position_z_(-0.6),

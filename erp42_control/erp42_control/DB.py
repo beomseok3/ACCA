@@ -19,6 +19,7 @@ class DB():
         
         self.id = "A1A2" # id를 고정(조건문을 통해 자동으로 변하게 하거나 직접 바꾸면서 db를 만드는 과정을 통해 db 제작 예정)
         
+        self.i =0 # table에 데이터를 쌓을때 사용하는 인덱스
         
         if already_exist: 
             print(f"Database Found At {self.db_path}")
@@ -33,48 +34,21 @@ class DB():
     
     def makeTable(self):
         self.__cur.execute(
-            "CREATE TABLE Node(Start_point CHAR(4), End_point CHAR(4), path_id CHAR(4) PRIMARY KEY, mission CHAR(10));"
+            "CREATE TABLE Node(Start_point CHAR(4), End_point CHAR(4), path_id CHAR(4) PRIMARY KEY);"
         ) #Node 테이블 
         self.__cur.execute(
-    """
-    CREATE TABLE Path(
-        path_id CHAR(4), 
-        idx INTEGER PRIMARY KEY, 
-        x REAL, 
-        y REAL, 
-        yaw REAL, 
-        FOREIGN KEY(path_id) REFERENCES Node(path_id) 
-        ON DELETE CASCADE 
-        ON UPDATE CASCADE
-    );
-    """
-)
-      
+            "CREATE TABLE Path(path_id CHAR(4), FOREIGN KEY(path_id) REFERENCES Node(path_id) ON DELETE CASCADE ON UPDATE CASCADE ,idx INTEGER, x REAL, y REAL, yaw REAL);"
+            ) # Path 테이블      
+        
         
     def write_db_Path(self,data): # Path에 해당하는 데이터를 Path 테이블에 기록한다 // data = [("",int,float,float,float), (,,,,)  .... ] 과 같은 형태 리스트 인덱스 순으로 기록된다. idx값이 같다면 새로운 데이터로 덮어쓴다
-        for i,(x,y,yaw) in enumerate(data):
+        for i,x,y,yaw in enumerate(data):
             self.__cur.execute(
-                    "INSERT INTO Path (path_id,idx, x, y, yaw) VALUES (?, ?, ?,?,?) ON CONFLICT(idx) DO UPDATE SET path_id = excluded.path_id, x=excluded.x, y=excluded.y, yaw=excluded.yaw",
-                    (self.id, i, x, y, yaw),
+                    "INSERT INTO Path (path_id,idx, x, y, yaw) VALUES (?, ?, ?, ?,?) ON CONFLICT(idx) DO UPDATE SET path_id = excluded.path_id, value_x=excluded.value_x, value_y=excluded.value_y, yaw=excluded.yaw",
+                    (self.id, i , x, y, yaw),
                 )
         self.__conn.commit()
     
-    
-    def write_db_Path_con(self,data): # 덮어쓰지않고 data를 다음줄에 추가한다
-        for x,y,yaw in data:
-            self.__cur.execute( "INSERT INTO Path (path_id, x, y, yaw) VALUES (?, ?, ?,?)", (self.id, x, y, yaw),)
-        self.__conn.commit()
-    
-    
-    def write_db_Node(self,data): # Node 테이블에 데이터를 추가한다 // data = [("","",""),(,,,) .... ]
-        for str,end,id,in data:
-            self.__cur.execute(
-                "INSERT INTO Node (Start_point, End_point,path_id,mission) VALUES (?,?,?,?)",
-                (str,end,id,"driving"),
-            ) 
-        self.__conn.commit()
-        
-        
     def read_db_n(self,table,*n): # table(Path or Node) 에 해당하는 데이터를 모두 가져온다, 반환 형태 : [(,,,),(,,,), ....] 데이터 개수는 db에 따라 다름
         n_str = ', '.join(n)
         query = f"SELECT {n_str} FROM {table}"
@@ -82,6 +56,32 @@ class DB():
         rows = self.__cur.fetchall()
         print(rows)
         return rows
+    
+    
+    def write_db_Path_con(self,data): # 덮어쓰지않고 data를 다음줄에 추가한다
+        for x,y,yaw in data:
+            self.__cur.execute(
+                    "INSERT INTO Path (path_id,idx, x, y, yaw) VALUES (?, ?, ?, ?,?)",
+                    (self.id, self.i , x, y, yaw),
+                )
+            self.i += 1
+        self.__conn.commit()
+    
+    
+    def write_db_Node(self,data): # Node 테이블에 데이터를 추가한다 // data = [("","",""),(,,,) .... ]
+        for str,end,id,in data:
+            self.__cur.execute(
+                "INSERT INTO Node (Start_point, End_point,path_id) VALUES (?,?,?)",
+                (str,end,id),
+            ) 
+        self.__conn.commit()
+        
+        
+    # def read_db_all(self,table): # table(Path or Node) 에 해당하는 데이터를 모두 가져온다, 반환 형태 : [(,,,),(,,,), ....] 데이터 개수는 db에 따라 다름
+    #     self.__cur.execute("SELECT x,y,yaw FROM %s",table)
+    #     rows = self.__cur.fetchall()
+    #     print(rows)
+    #     return rows
     
     
     def query_from_id_to_path(self,id): #id를 통해 Path 테이블의 x,y,yaw 값을 가져온다, 반환 형태: ros2 nav_msgs/msg/Path
@@ -92,7 +92,7 @@ class DB():
         path.header = Header()
         path.header.stamp = self.get_clock().now().to_msg()
         path.header.frame_id = "map"
-        for id,x, y, yaw in rows:
+        for id, x, y, yaw in rows:
             # if id == "b2c1":
                 pose = PoseStamped()
                 pose.header.stamp = self.get_clock().now().to_msg()
@@ -108,36 +108,28 @@ class DB():
                 path.poses.append(pose)
         return path
     
-    
-    def read_db_from_id_to_mission(self,id): # id 를 통해 Node테이블의 mission 정보를 가져온다
-        self.__cur.execute("SELECT mission FROM Node where path_id == ",(id,))
-        rows = self.__cur.fetchone()
-        return rows
+    def query_from_id(self,id):
+        self.__cur.execute("SELECT x,y,yaw,speed FROM Path where path_id == ?",(id,))
+        rows = self.__cur.fetchall()
         
-    def deletePath(self, path_id): # id에 해당하는 데이터를 지운다(), foreign key의 제약조건이 CASCADE이므로 노드테이블의 id데이터가 지워지면 같이 지워짐
-        # query_Path = "DELETE FROM Path WHERE path_id = ?;"
-        query_Node = "DELETE FROM Node WHERE path_id = ?;"
-        # self.__cur.execute(query_Path, (path_id,))
-        self.__cur.execute(query_Node, (path_id,))
-        self.__conn.commit()
-        
-    def splitPath(self, Start_point_idx, End_point_idx, path_id):
-        ranges = [(Start_point_idx,End_point_idx+1)]
-        for str_idx, end_idx in ranges:
-            query = """
-        UPDATE Path
-        SET path_id = ?
-        WHERE idx >= ? AND idx <= ?
-        """
-        self.__cur.execute(query,(path_id,Start_point_idx,end_idx))
-        self.__conn.commit()
-    
+        cx = []
+        cy = []
+        cyaw = []
+        cv = []
 
-    def find_idx(self,x,y,table):
-        self.__cur.execute(f"SELECT idx,x,y FROM {table}")
+        for x, y, yaw, v in rows:
+            cx.append(x)
+            cy.append(y)
+            cyaw.append(yaw)
+            cv.append(v)
+        
+        return cx, cy, cyaw, cv
+
+    def find_idx(self,x,y,table):# idx ,id
+        self.__cur.execute(f"SELECT idx,value_x,value_y FROM {table}")
         rows = self.__cur.fetchall()
         print(rows)
-        min_err  = 100 
+        min_err  = 10000
         idx = 0
         for row in rows:
             x_value = row[1]
@@ -151,15 +143,20 @@ class DB():
                 min_err = total_err
                 idx = row[0]
         return idx
-    
-    # @getattr
-    def get_cursor(self):
-        return self.__cur
 
+    
+    
+    def read_db_from_id_to_mission(self,id): # id 를 통해 Node테이블의 mission 정보를 가져온다
+        self.__cur.execute("SELECT mission FROM Node where path_id == ",(id,))
+        rows = self.__cur.fetchone()
+        return rows
         
-    def __del__(self):
-        # Destructor to ensure the connection is closed when the object is deleted
-        if self.__conn:
-            self.__conn.close()
-            
+    def deletePath(self, path_id): # id에 해당하는 데이터를 지운다(), foreign key의 제약조건이 CASCADE이므로 노드테이블의 id데이터가 지워지면 같이 지워짐
+        # query_Path = "DELETE FROM Path WHERE path_id = ?;"
+        query_Node = "DELETE FROM Node WHERE path_id = ?;"
+        # self.__cur.execute(query_Path, (path_id,))
+        self.__cur.execute(query_Node, (path_id,))
+        self.__conn.commit()
+
+
         

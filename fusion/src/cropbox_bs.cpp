@@ -11,10 +11,13 @@ class VelodyneSubscriber : public rclcpp::Node
 public:
     VelodyneSubscriber(const rclcpp::NodeOptions& options) : Node("bs_cropbox_filter", options)
     {
-        this->declare_parameter("mode", 0);  // Declare a parameter with a default value
-        this->get_parameter("mode", mode_);  // Retrieve the parameter value
+        this->declare_parameter<std::vector<double>>("detection_area", { -20.0, 20.0, -20.0, 20.0 });
+        this->get_parameter("detection_area", detection);
 
-        RCLCPP_INFO(this->get_logger(), "Mode: %d", mode_);
+        // this->declare_parameter("mode", 0);  // Declare a parameter with a default value
+        // this->get_parameter("mode", mode_);  // Retrieve the parameter value
+
+        // RCLCPP_INFO(this->get_logger(), "Mode: %d", mode_);
 
         velodyne_raw_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/velodyne_points", 10,
@@ -27,6 +30,8 @@ private:
     void velodyneCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {
         std::vector<uint8_t> filtered_data;
+        this->get_parameter("detection_area", detection);
+
 
         int x_offset = -1;
         int y_offset = -1;
@@ -44,23 +49,11 @@ private:
 
         const size_t float_size = 4;
         float min_x, max_x, min_y, max_y;
-        if (mode_ == 0) {
-            min_x = 0.0;
-            max_x = 3.0;
-            min_y = -25.0;
-            max_y = 0.0;
-        } else if (mode_ == 1) {
-            min_x = 0.0;
-            max_x = 10.0;  
-            min_y = -2.5;
-            max_y = 2.5;
-        } else {
-            RCLCPP_WARN(this->get_logger(), "Unsupported mode: %d. Defaulting to mode 0.", mode_);
-            min_x = 0.0;
-            max_x = 3.0;
-            min_y = -25.0;
-            max_y = 0.0;
-        }
+        min_x = detection[0];
+        max_x = detection[1];
+        min_y = detection[2];
+        max_y = detection[3];
+        
         std::cout << "x: " << min_x << " ~ " << max_x << "    " << "y: " << min_y << " ~ " << max_y << std::endl;
 
         for (size_t i = 0; i < msg->data.size(); i += msg->point_step)
@@ -96,7 +89,7 @@ private:
         }
     }
 
-    int mode_;
+    std::vector<double> detection;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cropbox_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr velodyne_raw_subscriber_;
 };
@@ -106,9 +99,9 @@ int main(int argc, char * argv[])
     rclcpp::init(argc, argv);
 
     rclcpp::NodeOptions options;
-    if (argc > 1) {
-        options.append_parameter_override("mode", std::atoi(argv[1]));  // Set the mode parameter from the command-line argument
-    }
+    // if (argc > 1) {
+    //     options.append_parameter_override("mode", std::atoi(argv[1]));  // Set the mode parameter from the command-line argument
+    // }
 
     auto node = std::make_shared<VelodyneSubscriber>(options);  
 
