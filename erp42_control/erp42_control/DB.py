@@ -84,29 +84,29 @@ class DB():
     #     return rows
     
     
-    def query_from_id_to_path(self,id): #id를 통해 Path 테이블의 x,y,yaw 값을 가져온다, 반환 형태: ros2 nav_msgs/msg/Path
-        self.__cur.execute("SELECT x,y,yaw FROM Path where path_id == ",(id,))
-        rows = self.__cur.fetchall()
+    # def query_from_id_to_path(self,id): #id를 통해 Path 테이블의 x,y,yaw 값을 가져온다, 반환 형태: ros2 nav_msgs/msg/Path
+    #     self.__cur.execute("SELECT x,y,yaw FROM Path where path_id == ",(id,))
+    #     rows = self.__cur.fetchall()
         
-        path = Path()
-        path.header = Header()
-        path.header.stamp = self.get_clock().now().to_msg()
-        path.header.frame_id = "map"
-        for id, x, y, yaw in rows:
-            # if id == "b2c1":
-                pose = PoseStamped()
-                pose.header.stamp = self.get_clock().now().to_msg()
-                pose.header.frame_id = "map"
-                pose.pose.position.x = x
-                pose.pose.position.y = y
-                pose.pose.position.z = 0.0
-                quaternion = quaternion_from_euler(0, 0, yaw)
-                pose.pose.orientation.x = quaternion[0]
-                pose.pose.orientation.y = quaternion[1]
-                pose.pose.orientation.z = quaternion[2]
-                pose.pose.orientation.w = quaternion[3]
-                path.poses.append(pose)
-        return path
+    #     path = Path()
+    #     path.header = Header()
+    #     path.header.stamp = self.get_clock().now().to_msg()
+    #     path.header.frame_id = "map"
+    #     for id, x, y, yaw in rows:
+    #         # if id == "b2c1":
+    #             pose = PoseStamped()
+    #             pose.header.stamp = self.get_clock().now().to_msg()
+    #             pose.header.frame_id = "map"
+    #             pose.pose.position.x = x
+    #             pose.pose.position.y = y
+    #             pose.pose.position.z = 0.0
+    #             quaternion = quaternion_from_euler(0, 0, yaw)
+    #             pose.pose.orientation.x = quaternion[0]
+    #             pose.pose.orientation.y = quaternion[1]
+    #             pose.pose.orientation.z = quaternion[2]
+    #             pose.pose.orientation.w = quaternion[3]
+    #             path.poses.append(pose)
+    #     return path
     
     def query_from_id(self,id):
         self.__cur.execute("SELECT x,y,yaw,speed FROM Path where path_id == ?",(id,))
@@ -126,7 +126,7 @@ class DB():
         return cx, cy, cyaw, cv
 
     def find_idx(self,x,y,table):# idx ,id
-        self.__cur.execute(f"SELECT idx,value_x,value_y FROM {table}")
+        self.__cur.execute(f"SELECT idx,x,y FROM {table}")
         rows = self.__cur.fetchall()
         print(rows)
         min_err  = 10000

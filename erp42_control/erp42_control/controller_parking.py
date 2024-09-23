@@ -55,6 +55,7 @@ class Detection:
         )
     def update(self,msg):
         self.cone = msg.poses
+        print("inin")
     
 
 
@@ -65,16 +66,15 @@ class Pakring():
         self.node = node
         
         # search_path
-        self.search_path_db = DB("search_path_kcity.db")
-        rows = self.search_path_db.read_db_n("data", "value_x", "value_y", "yaw")
-        self.search_path = rows
-
+        self.search_path_db = DB("0922_search_path_test.db")
+        self.search_path = self.search_path_db.read_db_n("Path", "x", "y", "yaw")
+        rows =self.search_path
         self.j =0
         
         # parking_path
-        self.parking_path_db = DB("school_gjs.db")
+        self.parking_path_db = DB("0922_parking_path_test.db")
         self.parking_path = self.parking_path_db.read_db_n(
-            "data", "value_x", "value_y", "yaw"
+            "Path", "x", "y", "yaw"
         )
         self.parking_path = np.array(self.parking_path)
         
@@ -84,13 +84,13 @@ class Pakring():
         
         # params
         self.standard_point = Pose(
-            self.search_path[153][0], self.search_path[153][1], self.search_path[153][2]
+            self.search_path[0][0], self.search_path[0][1], self.search_path[0][2]
         )  
-        # kcity : 153 , school : 44
+        # kcity : 153 , school : 0922?
         self.min_x = self.standard_point.x -1.5
         self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -4.0
-        self.max_y = self.standard_point.y  -1.5
+        self.min_y = self.standard_point.y -2.
+        self.max_y = self.standard_point.y  -0.5
 
         self.marker_id = 1
         
@@ -111,7 +111,7 @@ class Pakring():
         
         self.path_timer = node.create_timer(1,self.path_for_visu)
         
-        self.pub_path = node.create_publisher(Path,"path",qos_profile_system_default)
+        self.pub_path = node.create_publisher(Path,"parking_path",qos_profile_system_default)
         
         self.pub_low_y_cone_marker = node.create_publisher(MarkerArray, "low_y_cone", qos_profile_system_default)
         
@@ -123,6 +123,42 @@ class Pakring():
     
         
         
+
+    
+    def rotate_points(self, points, angle, origin):
+        if points is not None:
+
+            angle_radians = -angle  # 반 시계방향
+            rotation_matrix = np.array(
+                [
+                    [np.cos(angle_radians), -np.sin(angle_radians)],
+                    [np.sin(angle_radians), np.cos(angle_radians)],
+                ]
+            )
+
+            translated_points = points - origin
+            rotated_points = np.dot(translated_points, rotation_matrix.T)
+            rotated_points += origin
+            return rotated_points
+
+    def euclidean_duplicate(self, p1):
+
+        threshold = 0.3
+        for p2 in self.low_y_cone:
+            # print(p2,p1)
+            distance = m.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+            if distance <= threshold:
+                return True
+        return False
+    
+    def in_detection_area(self, point):
+
+        if self.min_x <= point[0] <= self.max_x:
+            if self.min_y <= point[1] <= self.max_y:
+                return True
+        return False
+    # visualize
+    def marker_timer(self):
         marker = Marker()
         marker.header.frame_id = "map"
         marker.header.stamp = self.node.get_clock().now().to_msg()
@@ -233,44 +269,8 @@ class Pakring():
         # Publish the marker array
         self.detection_area_marker_array.publish(marker_array)
     
-
-    
-    def rotate_points(self, points, angle, origin):
-        if points is not None:
-
-            angle_radians = -angle  # 반 시계방향
-            rotation_matrix = np.array(
-                [
-                    [np.cos(angle_radians), -np.sin(angle_radians)],
-                    [np.sin(angle_radians), np.cos(angle_radians)],
-                ]
-            )
-
-            translated_points = points - origin
-            rotated_points = np.dot(translated_points, rotation_matrix.T)
-            rotated_points += origin
-            return rotated_points
-
-    def euclidean_duplicate(self, p1):
-
-        threshold = 0.8
-        for p2 in self.low_y_cone:
-            # print(p2,p1)
-            distance = m.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-            if distance <= threshold:
-                return True
-        return False
-    
-    def in_detection_area(self, point):
-
-        if self.min_x <= point[0] <= self.max_x:
-            if self.min_y <= point[1] <= self.max_y:
-                return True
-        return False
-    # visualize
-    def marker_timer(self):
         if self.low_y_cone:
-            marker_array = MarkerArray()
+            marker_array_ = MarkerArray()
             origin_low_y_cone = self.rotate_points(
                 np.array(self.low_y_cone),
                 -self.standard_point.yaw,
@@ -301,8 +301,8 @@ class Pakring():
                 marker.color.b = 0.0
                 marker.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
 
-                marker_array.markers.append(marker)
-            self.pub_low_y_cone_marker.publish(marker_array)
+                marker_array_.markers.append(marker)
+            self.pub_low_y_cone_marker.publish(marker_array_)
     
     def path_for_visu(self):
         path = Path()
@@ -341,9 +341,10 @@ class Pakring():
     def update_parking_path(self):
         if self.j ==0:
             for i in range(len(self.low_y_cone) - 1):
+                self.low_y_cone = sorted(self.low_y_cone,key= lambda x : x[0])
                 dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
                 print(dist)
-                if dist > 4.0:
+                if dist > 3.5:
                     self.idx = i
                     self.adjust_parking_path()
                     self.j += 1 
@@ -372,7 +373,7 @@ class Pakring():
         )  
         
         a = self.search_path_db.find_idx(
-            self.parking_path[-1][0], self.parking_path[-1][1], "data"
+            self.parking_path[-1][0], self.parking_path[-1][1], "Path"
         )
         self.goal = len(self.search_path) - a - 1
 
@@ -435,22 +436,17 @@ class Pakring():
                 self.path_cy = self.parking_path[:, 1]  # 두 번째 열 (cy 값들)
                 self.path_cyaw = self.parking_path[:, 2]  # 세 번째 열 (cyaw 값들)
                 self.target_idx = 0
-
+                
+            msg = ControlMessage(mora=0, estop=1,gear=0,speed = 0*10, steer = 0,brake=200)
+            return msg, False
         else:
             if self.parking_state == Parking_state.STOP:
                 if time.time() - self.stop_start_time >= 5.0:
                     self.parking_state = Parking_state(self.parking_state.value + 1)
                     self.target_idx = 0  # STOP -> RETURN
 
-                msg = ControlMessage()
-                msg.mora, msg.estop, msg.gear, msg.speed, msg.steer, msg.brake = (
-                    0,
-                    1,
-                    0,
-                    0,
-                    0,
-                    200,
-                )
+                msg = ControlMessage(mora=0, estop=1,gear=0,speed = 0*10, steer = 0,brake=200)
+
                 return msg, False
 
             else:  # SEARCH, PARKING, RETURN
@@ -476,15 +472,8 @@ class Pakring():
                             self.path_cyaw,
                             reverse=self.reverse_path,
                         )
-                        msg = ControlMessage()
-                        msg.mora, msg.estop, msg.gear, msg.speed, msg.steer, msg.brake = (
-                            0,
-                            0,
-                            2,
-                            3,
-                            int(m.degrees(-1*steer)),
-                            0,
-                        )
+                        msg = ControlMessage(mora=0, estop=0,gear=2,speed = 3*10, steer = int(m.degrees(-1* steer)),brake=0)
+
                     except Exception as e:
                         print(f"{e}: stanley")
                     return msg, False

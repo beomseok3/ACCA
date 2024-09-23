@@ -442,7 +442,7 @@ class Obstacle():
             else:
 
                 # k-city2 @큰거
-                self.to_num = None
+                
                 self.publish_ref_path(
                     wx=[
                         121.565,

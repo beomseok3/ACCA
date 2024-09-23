@@ -163,24 +163,70 @@ class State(Enum):
     # A25A26 = "driving_M"
 
 
- #kcity global driving test
+#  #kcity global driving test
+#     A1A2 = "driving_A" #driving
+#     A2A3 = "driving_c" #pickup
+
+#     A3A4 = "driving_B" #driving
+#     A4A5 = "obstacle_A" #small avoidance
+
+#     A5A6 = "driving_C" #driving
+#     A6A7 = "driving_D" #driving
+
+#     A7A8 = "driving_E" #driving
+#     A8A9 = "driving_F" #traffic
+
+#     A9A10 = "driving_G" #driving
+#     A10A11 = "driving_H" #traffic
+    
+#     A11A12 = "driving_I" #driving
+#     A12A13 = "obstacle_B" #big avoidance
+
+#     A13A14 = "driving_K" #driving
+#     A14A15 = "driving_L" #traffic
+
+#     A15A16 = "driving_h" #delivery
+#     A16A17 = "driving_M" #driving
+
+#     A17A18 = "driving_N" #driving
+#     A18A19 = "driving_O" #traffic
+
+#     A19A20 = "driving_P" #driving
+#     A20A21 = "driving_Q" #traffic
+
+#     A21A22 = "driving_R" #driving
+#     A22A23 = "driving_S" #driving
+
+#     A23A24 = "driving_T" #driving
+#     A24A25 = "driving_U" #driving
+
+#     A25A26 = "driving_V" #driving
+#     A26A27 = "driving_W" #driving
+
+#     A27A28 = "driving_X" #traffic
+#     A28A29 = "driving_Y" #driving
+#     A29A30 = "driving_Z" #traffic
+#     A30A31 = "parking_a" #driving
+    # A31A32 = "parking_a" #parking
+
+#0922_school
     A1A2 = "driving_A" #driving
     A2A3 = "driving_c" #pickup
 
     A3A4 = "driving_B" #driving
-    A4A5 = "driving_t" #small avoidance
+    A4A5 = "driving_p" #small avoidance
 
     A5A6 = "driving_C" #driving
     A6A7 = "driving_D" #driving
 
-    A7A8 = "driving_E" #driving
+    A7A8 = "parking_E" #driving
     A8A9 = "driving_F" #traffic
 
     A9A10 = "driving_G" #driving
     A10A11 = "driving_H" #traffic
     
     A11A12 = "driving_I" #driving
-    A12A13 = "driving_l" #big avoidance
+    A12A13 = "obstacle_B" #big avoidance
 
     A13A14 = "driving_K" #driving
     A14A15 = "driving_L" #traffic
@@ -290,7 +336,7 @@ class StateMachine():
 
         self.target_idx = 0
         self.mission_finish = False
-
+        self.k = 0
 
         self.obstacle = Obstacle(self.node)
         # self.pickup = Pickup(self.node)
@@ -330,6 +376,7 @@ class StateMachine():
         msg = ControlMessage()
 
         if self.state.value[:-2] == "driving":
+
             steer, self.target_idx, hdr, ctr = self.st.stanley_control(self.odometry, self.path.cx, self.path.cy, self.path.cyaw)
             target_speed = self.set_target_speed()
             adapted_speed = self.ss.adaptSpeed(target_speed, hdr, ctr, min_value=4, max_value=15) # 에러(hdr, ctr) 기반 목표 속력 조정
@@ -343,7 +390,13 @@ class StateMachine():
             msg.brake = int(brake)
         
         elif self.state.value[:-2] == "parking":
-            set_param("bs_cropbox_filter","detection_area","[0.,3.,-10.,0.]")
+            if self.k < 1:
+                try:
+                    set_param("bs_cropbox_filter","detection_area","[-2.,4.,-4.,0.]")
+                except:
+                    self.k -= 1
+                finally:
+                    self.k += 1
             msg, self.mission_finish = self.parking.control_parking(self.odometry)
 
         elif self.state.value[:-2] == "obstacle":
@@ -412,7 +465,7 @@ def main():
     node = rclpy.create_node("state_machine_node")
 
     # Declare Params
-    node.declare_parameter("file_name", "0907_1123_test.db")
+    node.declare_parameter("file_name", "0922_1632_test.db")
     node.declare_parameter("odom_topic", "/localization/kinematic_state")
     # node.declare_parameter("odom_topic", "/localization/kinematic_state2")
 

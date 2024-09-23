@@ -11,7 +11,8 @@ def set_param(node_name,param_name,value):
         print(var)
     except subprocess.CalledProcessError as e: 
         print(f"error_os_system {e}")
-        
-# b =set_param("bs_cropbox_filter","detection_area","[0.,3.,-10.,0.]")
-
-# 함수 잘 만들고 terminal log 문자열 succsess확인하든가 -->  state machine 적용하고 처리확인y
+# while True:        
+#     set_param("bs_cropbox_filter","detection_area","[0.,500.,-10.,0.]")
+#     print("1")
+# 함수 잘 만들고 terminal 
+# log 문자열 succsess확인하든가 -->  state machine 적용하고 처리확인y
