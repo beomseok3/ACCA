@@ -16,7 +16,7 @@ from enum import Enum
 import threading
 
 
-from controller_obstacle import Obstacle
+# from controller_obstacle import Obstacle
 # from controller_pickup import Pickup
 # from controller_delivery import Delivery
 from controller_parking import Pakring
@@ -220,39 +220,39 @@ class State(Enum):
     A6A7 = "driving_D" #driving
 
     A7A8 = "parking_E" #driving
-    A8A9 = "driving_F" #traffic
+    # A8A9 = "driving_F" #traffic
 
-    A9A10 = "driving_G" #driving
-    A10A11 = "driving_H" #traffic
+    # A9A10 = "driving_G" #driving
+    # A10A11 = "driving_H" #traffic
     
-    A11A12 = "driving_I" #driving
-    A12A13 = "obstacle_B" #big avoidance
+    # A11A12 = "driving_I" #driving
+    # A12A13 = "obstacle_B" #big avoidance
 
-    A13A14 = "driving_K" #driving
-    A14A15 = "driving_L" #traffic
+    # A13A14 = "driving_K" #driving
+    # A14A15 = "driving_L" #traffic
 
-    A15A16 = "driving_h" #delivery
-    A16A17 = "driving_M" #driving
+    # A15A16 = "driving_h" #delivery
+    # A16A17 = "driving_M" #driving
 
-    A17A18 = "driving_N" #driving
-    A18A19 = "driving_O" #traffic
+    # A17A18 = "driving_N" #driving
+    # A18A19 = "driving_O" #traffic
 
-    A19A20 = "driving_P" #driving
-    A20A21 = "driving_Q" #traffic
+    # A19A20 = "driving_P" #driving
+    # A20A21 = "driving_Q" #traffic
 
-    A21A22 = "driving_R" #driving
-    A22A23 = "driving_S" #driving
+    # A21A22 = "driving_R" #driving
+    # A22A23 = "driving_S" #driving
 
-    A23A24 = "driving_T" #driving
-    A24A25 = "driving_U" #driving
+    # A23A24 = "driving_T" #driving
+    # A24A25 = "driving_U" #driving
 
-    A25A26 = "driving_V" #driving
-    A26A27 = "driving_W" #driving
+    # A25A26 = "driving_V" #driving
+    # A26A27 = "driving_W" #driving
 
-    A27A28 = "driving_X" #traffic
-    A28A29 = "driving_Y" #driving
-    A29A30 = "driving_Z" #traffic
-    A30A31 = "parking_a" #driving
+    # A27A28 = "driving_X" #traffic
+    # A28A29 = "driving_Y" #driving
+    # A29A30 = "driving_Z" #traffic
+    # A30A31 = "parking_a" #driving
     # A31A32 = "parking_a" #parking
 
 

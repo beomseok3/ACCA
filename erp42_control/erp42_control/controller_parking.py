@@ -6,7 +6,7 @@ import math as m
 
 # ros2
 import rclpy
-from rclpy.qos import  qos_profile_system_default, QoSProfile
+from rclpy.qos import  qos_profile_system_default
 
 #msg
 from erp42_msgs.msg import ControlMessage
@@ -33,6 +33,7 @@ class Parking_state(Enum):
     PARKING = 1
     STOP = 2
     RETURN = 3
+    FINISH = 4 
 
 
 class Pose:
@@ -55,7 +56,6 @@ class Detection:
         )
     def update(self,msg):
         self.cone = msg.poses
-        print("inin")
     
 
 
@@ -103,7 +103,6 @@ class Pakring():
         self.goal = 0
         self.target_idx = 0
         self.stop_start_time = 0
-        self.reverse_path = False
         self.low_y_cone = []
 
         # visualize
@@ -421,24 +420,27 @@ class Pakring():
 
             if self.parking_state == Parking_state.SEARCH:
                 self.parking_state = Parking_state(self.parking_state.value + 1)  # SEARCH -> PARKING
-                self.goal = 10
-                self.reverse_path = True
+                self.goal = 0
                 self.path_cx = self.parking_path[::-1, 0]  # 첫 번째 열 (cx 값들)
                 self.path_cy = self.parking_path[::-1, 1]  # 두 번째 열 (cy 값들)
                 self.path_cyaw = self.parking_path[::-1, 2]  # 세 번째 열 (cyaw 값들)
                 self.target_idx = 0
+                self._time = time.time()
+                msg = ControlMessage(mora=0, estop=1,gear=0,speed = 0*10, steer = 0,brake=200)
+                return msg, False
 
             elif self.parking_state == Parking_state.PARKING:
                 self.parking_state = Parking_state(self.parking_state.value + 1)  # PARKING -> STOP
                 self.stop_start_time = time.time()  # STOP 상태로 전환된 시간을 기록
-                self.reverse_path = False
                 self.path_cx = self.parking_path[:, 0]  # 첫 번째 열 (cx 값들)
                 self.path_cy = self.parking_path[:, 1]  # 두 번째 열 (cy 값들)
                 self.path_cyaw = self.parking_path[:, 2]  # 세 번째 열 (cyaw 값들)
                 self.target_idx = 0
                 
-            msg = ControlMessage(mora=0, estop=1,gear=0,speed = 0*10, steer = 0,brake=200)
+            msg = ControlMessage(mora=0, estop=1,gear=2,speed = 0*10, steer = 0,brake=200)
             return msg, False
+        
+        
         else:
             if self.parking_state == Parking_state.STOP:
                 if time.time() - self.stop_start_time >= 5.0:
@@ -451,13 +453,19 @@ class Pakring():
 
             else:  # SEARCH, PARKING, RETURN
                 if self.parking_state == Parking_state.PARKING:
+                
+                    if time.time() - self._time <= 3.0:
+                        msg = ControlMessage(mora=0, estop=1,gear=0,speed = 0*10, steer = 0,brake=200)
+                        return msg                    
+                        
+                        
                     try:
                         steer, self.target_idx, _, _ = self.st.stanley_control(
                             State,
                             self.path_cx,
                             self.path_cy,
                             self.path_cyaw,
-                            reverse=self.reverse_path,
+                            reverse=True,
                         )
                         msg = ControlMessage(mora=0, estop=0,gear=0,speed = 3, steer = int(m.degrees(-1* steer)),brake=0)
                     except Exception as e:
@@ -470,7 +478,7 @@ class Pakring():
                             self.path_cx,
                             self.path_cy,
                             self.path_cyaw,
-                            reverse=self.reverse_path,
+                            reverse=False,
                         )
                         msg = ControlMessage(mora=0, estop=0,gear=2,speed = 3*10, steer = int(m.degrees(-1* steer)),brake=0)
 
