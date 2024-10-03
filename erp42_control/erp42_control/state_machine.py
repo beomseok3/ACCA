@@ -338,7 +338,7 @@ class StateMachine():
         self.mission_finish = False
         self.k = 0
 
-        self.obstacle = Obstacle(self.node)
+        # self.obstacle = Obstacle(self.node)
         # self.pickup = Pickup(self.node)
         # self.delivery = Delivery(self.node)
         self.parking = Pakring(self.node)
