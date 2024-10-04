@@ -54,7 +54,7 @@ class DB():
         query = f"SELECT {n_str} FROM {table}"
         self.__cur.execute(query)
         rows = self.__cur.fetchall()
-        print(rows)
+        # print(rows)
         return rows
     
     
@@ -128,7 +128,7 @@ class DB():
     def find_idx(self,x,y,table):# idx ,id
         self.__cur.execute(f"SELECT idx,x,y FROM {table}")
         rows = self.__cur.fetchall()
-        print(rows)
+        # print(rows)
         min_err  = 10000
         idx = 0
         for row in rows:

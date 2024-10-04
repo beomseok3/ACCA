@@ -67,13 +67,13 @@ class Pakring():
         self.node = node
         
         # search_path
-        self.search_path_db = DB("search_path_test.db")
+        self.search_path_db = DB("0922_search_path_test.db")
         self.search_path = self.search_path_db.read_db_n("Path", "x", "y", "yaw")
         rows =self.search_path
         self.j =0
         
         # parking_path
-        self.parking_path_db = DB("1003_1758_parking_path.db")
+        self.parking_path_db = DB("0922_parking_path_test.db")
         self.parking_path = self.parking_path_db.read_db_n(
             "Path", "x", "y", "yaw"
         )
@@ -90,7 +90,7 @@ class Pakring():
         # kcity : 153 , school : 0922?
         self.min_x = self.standard_point.x -1.5
         self.max_x = self.standard_point.x + 20.0
-        self.min_y = self.standard_point.y -1.9
+        self.min_y = self.standard_point.y -2.5
         self.max_y = self.standard_point.y  -0.5
 
         self.marker_id = 1
@@ -344,8 +344,8 @@ class Pakring():
             for i in range(len(self.low_y_cone) - 1):
                 self.low_y_cone = sorted(self.low_y_cone,key= lambda x : x[0])
                 dist = self.low_y_cone[i + 1][0] - self.low_y_cone[i][0]
-                print(f"{dist} m")
-                if dist > 3.1:
+                print(dist)
+                if dist > 3.5:
                     self.idx = i
                     self.adjust_parking_path()
                     self.j += 1 

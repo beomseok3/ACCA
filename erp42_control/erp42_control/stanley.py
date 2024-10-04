@@ -70,7 +70,6 @@ class Stanley(Node):
 
         current_target_idx, error_front_axle = self.calc_target_index(state, cx, cy, reverse=reverse)
 
-
         # if last_target_idx >= current_target_idx:
         #     current_target_idx = last_target_idx
 
@@ -137,7 +136,6 @@ class Stanley(Node):
         :return: (int, float)
         """
         # Calc front axle position
-
         fx = state.x + self.__L * \
             np.cos(state.yaw) / 2.0 * (-1.0 if reverse else 1.0)
         fy = state.y + self.__L * \
@@ -150,7 +148,6 @@ class Stanley(Node):
 
         d = np.hypot(dx, dy)
         target_idx = int(np.argmin(d))
-
         # Project RMS error onto front axle vector
         front_axle_vec = [-np.cos(state.yaw + np.pi / 2), -np.sin(state.yaw + np.pi / 2)]
 
