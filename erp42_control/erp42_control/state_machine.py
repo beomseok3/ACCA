@@ -24,7 +24,6 @@ from controller_parking import Pakring
 from Modifier_param import set_param
 
 
-
 def euler_from_quaternion(quaternion):
     """
     Converts quaternion (w in last place) to euler roll, pitch, yaw
@@ -210,7 +209,7 @@ class State(Enum):
     # A31A32 = "parking_a" #parking
 
 #0922_school
-    A1A2 = "parking_A" #driving
+    A1A2 = "driving_A" #driving
     A2A3 = "driving_c" #pickup
 
     A3A4 = "driving_B" #driving
@@ -376,18 +375,17 @@ class StateMachine():
         msg = ControlMessage()
 
         if self.state.value[:-2] == "driving":
-            if self.odometry.x != 0.:
-                steer, self.target_idx, hdr, ctr = self.st.stanley_control(self.odometry, self.path.cx, self.path.cy, self.path.cyaw)
-                target_speed = self.set_target_speed()
-                adapted_speed = self.ss.adaptSpeed(target_speed, hdr, ctr, min_value=4, max_value=15) # 에러(hdr, ctr) 기반 목표 속력 조정
-                # speed = self.pid.PIDControl(self.odometry.v * 3.6, adapted_speed) # speed 조정 (PI control) 
-                brake = self.cacluate_brake(adapted_speed) # brake 조정
+            steer, self.target_idx, hdr, ctr = self.st.stanley_control(self.odometry, self.path.cx, self.path.cy, self.path.cyaw)
+            target_speed = self.set_target_speed()
+            adapted_speed = self.ss.adaptSpeed(target_speed, hdr, ctr, min_value=4, max_value=15) # 에러(hdr, ctr) 기반 목표 속력 조정
+            # speed = self.pid.PIDControl(self.odometry.v * 3.6, adapted_speed) # speed 조정 (PI control) 
+            brake = self.cacluate_brake(adapted_speed) # brake 조정
 
-                msg.speed = int(adapted_speed) * 10
-                # msg.speed = 40
-                msg.steer = int(m.degrees((-1) * steer))
-                msg.gear = 2
-                msg.brake = int(brake)
+            msg.speed = int(adapted_speed) * 10
+            # msg.speed = 40
+            msg.steer = int(m.degrees((-1) * steer))
+            msg.gear = 2
+            msg.brake = int(brake)
             
         elif self.state.value[:-2] == "parking":
             if self.k < 1:
@@ -397,7 +395,6 @@ class StateMachine():
                     self.k -= 1
                 finally:
                     self.k += 1
-            if self.odometry.x != 0.0:
                 msg, self.mission_finish = self.parking.control_parking(self.odometry)
 
         elif self.state.value[:-2] == "obstacle":
@@ -466,7 +463,7 @@ def main():
     node = rclpy.create_node("state_machine_node")
 
     # Declare Params
-    node.declare_parameter("file_name", "1003_dolge_test.db")
+    node.declare_parameter("file_name", "1006_1507_acca.db")
     node.declare_parameter("odom_topic", "/localization/kinematic_state")
     # node.declare_parameter("odom_topic", "/localization/kinematic_state2")
 

@@ -32,8 +32,8 @@ class Parking_state(Enum):
     SEARCH = 0
     PARKING = 1
     STOP = 2
-    RETURN = 3
-    FINISH = 4 
+    RETURN = 3 #TODO path 생각
+    # FINISH = 4 
 
 
 class Pose:
